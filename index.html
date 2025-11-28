@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+
+<title>Hackerman Text - Theme Editor</title>
+
+<!-- fontawesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<style>
+    :root {
+        --font-family: "Menlo", ui-monospace, SFMono-Regular, monospace;
+        --font-size: 12px;
+
+        --background: #10141C;
+        --foreground: #565B67;
+        --text-color: #BFBDB6;
+        --cursor: #59C2FF;
+
+        --default: #BFBDB6;
+        --keyword: #FF8F3F;
+        --class: #5AC2FF;
+        --name: #FFB454;
+        --lambda: #D2A6FF;
+        --string: #AAD94C;
+        --number: #FFB454;
+        --operator: #BFBDB6;
+        --comment: #6A7279;
+        --special: #59C2FF;
+        --type: #59C2FF;
+        --boolean: #FFB454;
+        --builtin: #F07178;
+
+        --warning: #FCAF24;
+
+        --title-bar: #10141C;
+        --status-bar: #10141C;
+
+        /*--border: color-mix(in srgb, var(--foreground) 20%, transparent);*/
+        --border: color-mix(in srgb, grey 20%, transparent);
+        --button: color-mix(in srgb, grey 20%, transparent);
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: -apple-system, system-ui, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+        background: var(--background);
+        color: var(--text-color);
+    }
+
+    .page {
+        display: flex;
+        min-height: 100vh;
+    }
+
+    .left,
+    .right {
+        padding: 16px;
+    }
+
+    .left {
+        flex: 1.1;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .right {
+        flex: 0.9;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .fake-title-bar,
+    .fake-status-bar {
+        padding: 6px 10px;
+        font-size: var(--font-size);
+        background: var(--title-bar);
+    }
+
+    .fake-title-bar {
+        text-align: center;
+        font-weight: 900;
+        color: var(--text-color);
+        font-family: var(--font-family);
+    }
+
+    .fake-status-bar {
+        margin-top: 6px;
+        background: var(--status-bar);
+        color: var(--foreground);
+        display: flex;
+        justify-content: space-between;
+        font-family: var(--font-family);
+    }
+
+    .editor-preview {
+        display: flex;
+        flex-direction: column;
+        height: -webkit-fill-available;
+        background: var(--background);
+        border-radius: 8px;
+        position: relative;
+        border: 1px solid var(--border);
+        overflow: auto;
+    }
+
+    .editor-preview pre {
+        color: var(--default);
+        margin: 0;
+        font-family: var(--font-family);
+        font-size: 15px;
+        line-height: 1.4;
+        white-space: pre;
+        height: 100%;
+    }
+
+    .gutter {
+        display: inline-block;
+        width: 32px;
+        padding-right: 6px;
+        color: var(--foreground);
+        text-align: right;
+        user-select: none;
+    }
+
+    .tok-default { color: var(--default); }
+    .tok-keyword { color: var(--keyword); }
+    .tok-class { color: var(--class); }
+    .tok-name { color: var(--name); }
+    .tok-lambda { color: var(--lambda); }
+    .tok-string { color: var(--string); }
+    .tok-number { color: var(--number); }
+    .tok-operator{ color: var(--operator); }
+    .tok-comment { color: var(--comment); }
+    .tok-special { color: var(--special); }
+    .tok-type { color: var(--type); }
+    .tok-boolean { color: var(--boolean); }
+    .tok-builtin { color: var(--builtin); }
+
+    .tok-error {
+        color: var(--error);
+        background-color: color-mix(in srgb, var(--error) 10%, transparent);
+        padding: 0 2px;
+    }
+
+    .tok-warning {
+        color: var(--warning);
+        background-color: color-mix(in srgb, var(--warning) 10%, transparent);
+        padding: 0 2px;
+    }
+
+    .tok-success {
+        color: var(--success);
+        background-color: color-mix(in srgb, var(--success) 10%, transparent);
+        padding: 0 2px;
+    }
+
+    .cursor-preview {
+        display: inline-block;
+        width: 2px;
+        height: 1.1em;
+        background: var(--cursor);
+        margin-left: 1px;
+        vertical-align: text-bottom;
+    }
+
+    h1 {
+        font-size: 18px;
+        margin: 0 0 8px;
+    }
+
+    h2 {
+        color: var(--foreground);
+        font-size: 10px;
+        /* margin: 8px 0 4px; */
+        text-transform: uppercase;
+        opacity: 0.5;
+    }
+
+    .color-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 8px;
+    }
+
+    .color-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        font-family: var(--font-family);
+    }
+
+    .color-row label {
+        font-size: var(--font-size);
+        width: 90px;
+        color: var(--foreground);
+    }
+
+    .color-row input[type="color"] {
+        width: 28px;
+        height: 20px;
+        padding: 0;
+        border: none;
+        background: transparent;
+    }
+
+    .color-row input[type="text"] {
+        flex: 1;
+        min-width: 80px;
+        font-size: var(--font-size);
+        padding: 2px 4px;
+        border-radius: 4px;
+        border: 1px solid #323542;
+        background: #0b0c13;
+        color: var(--text-color);
+        font-family: var(--font-family);
+        outline: none;
+    }
+
+    .warning-extra {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: var(--font-size);
+        margin-top: 4px;
+    }
+
+    .success {
+        color: var(--success);
+        margin-left: 12px;
+    }
+
+    .output-wrapper {
+        position: relative;
+        height: 100%;
+    }
+
+    textarea#config-output {
+        width: 100%;
+        min-height: 220px;
+        height: 100%;
+        resize: none;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0b0c13;
+        color: var(--text-color);
+        font-family: var(--font-family);
+        font-size: var(--font-size);
+        padding: 8px;
+        white-space: pre;
+        outline: none;
+    }
+
+    .config-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    button {
+        font-size: 15px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 0;
+        background: var(--button);
+        color: white;
+        cursor: pointer;
+        font-family: var(--font-family);
+
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+
+    button:hover {
+        opacity: 0.8;
+    }
+
+    /*#copy-status {
+        font-size: var(--font-size);
+        color: var(--special);
+    }*/
+
+    @media (max-width: 900px) {
+        .page {
+            flex-direction: column;
+        }
+        .left {
+            border-right: none;
+            border-bottom: 1px solid var(--border);
+        }
+    }
+
+    .traffic-lights {
+        display: flex;
+        gap: 6px;
+
+        position: absolute;
+        top: 6px;
+        left: 6px;
+    }
+
+    .traffic-light {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.25);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.35),
+            0 0 0 1px rgba(0, 0, 0, 0.15);
+        display: inline-block;
+        position: relative;
+        cursor: default;
+    }
+
+    .traffic-light.close {
+        background: #ff5f57;
+    }
+
+    .traffic-light.minimize {
+        background: #febc2e;
+    }
+
+    .traffic-light.fullscreen {
+        background: #28c840;
+    }
+</style>
+</head>
+
+<body>
+<div class="page">
+  <div class="left">
+    <!-- <h1>Hackerman Text - Theme Editor</h1> -->
+    <div class="editor-preview">
+      <div class="traffic-lights">
+        <span class="traffic-light close"></span>
+        <span class="traffic-light minimize"></span>
+        <span class="traffic-light fullscreen"></span>
+      </div>
+      <div class="fake-title-bar">main.odin</div>
+      
+      <pre><code>
+<span class="gutter"> 1</span> <span class="tok-keyword">package</span> <span class="tok-name">main</span>
+<span class="gutter"> 2</span>
+<span class="gutter"> 3</span> <span class="tok-keyword">type</span> <span class="tok-class">Theme</span> :: <span class="tok-type">struct</span> {{
+<span class="gutter"> 4</span>     name   : <span class="tok-type">string</span>
+<span class="gutter"> 5</span>     colors : <span class="tok-type">map</span>[<span class="tok-type">string</span>]<span class="tok-type">string</span>
+<span class="gutter"> 6</span> }}
+<span class="gutter"> 7</span>
+<span class="gutter"> 8</span> <span class="tok-keyword">when</span> <span class="tok-boolean">true</span> {{
+<span class="gutter"> 9</span>     theme := <span class="tok-class">Theme</span>{{}}
+<span class="gutter">10</span>     theme.colors[<span class="tok-string">"background"</span>] = <span class="tok-string">"#10141C"</span>
+<span class="gutter">11</span>     theme.colors[<span class="tok-string">"keyword"</span>]    = <span class="tok-string">"#FF8F3F"</span>
+<span class="gutter">12</span>     theme.colors[<span class="tok-string">"string"</span>]     = <span class="tok-string">"#AAD94C"</span>
+<span class="gutter">13</span>
+<span class="gutter">14</span>     <span class="tok-comment">// Special operator demo</span>
+<span class="gutter">15</span>     value := <span class="tok-number">42</span> <span class="tok-operator">+</span> <span class="tok-number">1</span>
+<span class="gutter">16</span>
+<span class="gutter">17</span>     <span class="tok-comment">// Builtin + lambda</span>
+<span class="gutter">18</span>     print := <span class="tok-lambda">proc</span>(msg: <span class="tok-type">string</span>) {{
+<span class="gutter">19</span>         <span class="tok-builtin">println</span>(msg)
+<span class="gutter">20</span>     }}
+<span class="gutter">21</span>
+<span class="gutter">22</span>     <span class="tok-warning">warning("This is a themed warning")</span>
+<span class="gutter">23</span>     print(<span class="tok-string">"value = "</span> <span class="tok-operator">+</span> <span class="tok-special">to_string</span>(value))
+<span class="gutter">24</span> }}<span class="cursor-preview"></span>
+</code></pre>
+    
+    <div class="fake-status-bar">
+      <span>Line 24, Column 4</span>
+      <span>Odin <span class="success">AI:Enabled</span></span>
+    </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <!-- <h2>Colors</h2> -->
+
+    <!-- Core -->
+    <div class="color-grid">
+      <div class="color-row">
+        <label for="background-hex">background</label>
+        <input type="color" id="background-color">
+        <input type="text" id="background-hex">
+      </div>
+      <div class="color-row">
+        <label for="foreground-hex">foreground</label>
+        <input type="color" id="foreground-color">
+        <input type="text" id="foreground-hex">
+      </div>
+      <div class="color-row">
+        <label for="text_color-hex">text_color</label>
+        <input type="color" id="text_color-color">
+        <input type="text" id="text_color-hex">
+      </div>
+      <div class="color-row">
+        <label for="cursor-hex">cursor</label>
+        <input type="color" id="cursor-color">
+        <input type="text" id="cursor-hex">
+      </div>
+    </div>
+
+    <!-- Tokens -->
+    <h2>Syntax</h2>
+    <div class="color-grid">
+      <div class="color-row">
+        <label for="default-hex">default</label>
+        <input type="color" id="default-color">
+        <input type="text" id="default-hex">
+      </div>
+      <div class="color-row">
+        <label for="keyword-hex">keyword</label>
+        <input type="color" id="keyword-color">
+        <input type="text" id="keyword-hex">
+      </div>
+      <div class="color-row">
+        <label for="class-hex">class</label>
+        <input type="color" id="class-color">
+        <input type="text" id="class-hex">
+      </div>
+      <div class="color-row">
+        <label for="name-hex">name</label>
+        <input type="color" id="name-color">
+        <input type="text" id="name-hex">
+      </div>
+      <div class="color-row">
+        <label for="lambda-hex">lambda</label>
+        <input type="color" id="lambda-color">
+        <input type="text" id="lambda-hex">
+      </div>
+      <div class="color-row">
+        <label for="string-hex">string</label>
+        <input type="color" id="string-color">
+        <input type="text" id="string-hex">
+      </div>
+      <div class="color-row">
+        <label for="number-hex">number</label>
+        <input type="color" id="number-color">
+        <input type="text" id="number-hex">
+      </div>
+      <div class="color-row">
+        <label for="operator-hex">operator</label>
+        <input type="color" id="operator-color">
+        <input type="text" id="operator-hex">
+      </div>
+      <div class="color-row">
+        <label for="comment-hex">comment</label>
+        <input type="color" id="comment-color">
+        <input type="text" id="comment-hex">
+      </div>
+      <div class="color-row">
+        <label for="special-hex">special</label>
+        <input type="color" id="special-color">
+        <input type="text" id="special-hex">
+      </div>
+      <div class="color-row">
+        <label for="type-hex">type</label>
+        <input type="color" id="type-color">
+        <input type="text" id="type-hex">
+      </div>
+      <div class="color-row">
+        <label for="boolean-hex">boolean</label>
+        <input type="color" id="boolean-color">
+        <input type="text" id="boolean-hex">
+      </div>
+      <div class="color-row">
+        <label for="builtin-hex">builtin</label>
+        <input type="color" id="builtin-color">
+        <input type="text" id="builtin-hex">
+      </div>
+    </div>
+
+    <!-- System -->
+    <h2>System (optional)</h2>
+    <div class="color-grid">
+      <div class="color-row">
+        <label for="_error-hex">_error</label>
+        <input type="color" id="_error-color">
+        <input type="text" id="_error-hex">
+      </div>
+      <div class="color-row">
+        <label for="_warning-hex">_warning</label>
+        <input type="color" id="_warning-color">
+        <input type="text" id="_warning-hex">
+      </div>
+      <div class="color-row">
+        <label for="_success-hex">_success</label>
+        <input type="color" id="_success-color">
+        <input type="text" id="_success-hex">
+      </div>
+      <div class="color-row">
+        <label for="_title_bar-hex">_title_bar</label>
+        <input type="color" id="_title_bar-color">
+        <input type="text" id="_title_bar-hex">
+      </div>
+      <div class="color-row">
+        <label for="_status_bar-hex">_status_bar</label>
+        <input type="color" id="_status_bar-color">
+        <input type="text" id="_status_bar-hex">
+      </div>
+    </div>
+
+    <!-- <div class="config-header">
+      <h2>Generated config</h2>
+      <div>
+        <button id="copy-config">Copy</button>
+        <span id="copy-status"></span>
+      </div>
+    </div> -->
+    <div class="output-wrapper">
+        <button id="copy-config"><i class="fa-solid fa-copy"></i></button>
+        <textarea id="config-output" spellcheck="false"></textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+  const theme = {
+    background:   '#10141C',
+    foreground:   '#565B67',
+    text_color:   '#BFBDB6',
+    cursor:       '#59C2FF',
+
+    default:      '#BFBDB6',
+    keyword:      '#FF8F3F',
+    class:        '#5AC2FF',
+    name:         '#FFB454',
+    lambda:       '#D2A6FF',
+    string:       '#AAD94C',
+    number:       '#FFB454',
+    operator:     '#BFBDB6',
+    comment:      '#6A7279',
+    special:      '#59C2FF',
+    type:         '#59C2FF',
+    boolean:      '#FFB454',
+    builtin:      '#F07178',
+
+    _error:       '#FC4646',
+    _warning:     '#FCAF24',
+    _success:     '#28C032',
+
+    _title_bar:   '#10141C',
+    _status_bar:  '#10141C',
+  };
+
+  const colorKeys = [
+    'background','foreground','text_color','cursor',
+    'default','keyword','class','name','lambda','string',
+    'number','operator','comment','special','type',
+    'boolean','builtin',
+    '_error', '_warning', '_success',
+    '_title_bar','_status_bar',
+  ];
+
+  function normalizeHex(str) {
+    if (!str) return '';
+    str = str.trim();
+    if (!str) return '';
+    if (str[0] !== '#') str = '#' + str;
+    if (str.length === 4) {
+      // e.g. #abc -> #aabbcc
+      str = '#' + str[1] + str[1] + str[2] + str[2] + str[3] + str[3];
+    }
+    return str.toUpperCase();
+  }
+
+  function applyTheme() {
+    const root = document.documentElement;
+
+    root.style.setProperty('--background', theme.background);
+    root.style.setProperty('--foreground', theme.foreground);
+    root.style.setProperty('--text-color', theme.text_color);
+    root.style.setProperty('--cursor', theme.cursor);
+
+    root.style.setProperty('--default', theme.default);
+    root.style.setProperty('--keyword', theme.keyword);
+    root.style.setProperty('--class', theme.class);
+    root.style.setProperty('--name', theme.name);
+    root.style.setProperty('--lambda', theme.lambda);
+    root.style.setProperty('--string', theme.string);
+    root.style.setProperty('--number', theme.number);
+    root.style.setProperty('--operator', theme.operator);
+    root.style.setProperty('--comment', theme.comment);
+    root.style.setProperty('--special', theme.special);
+    root.style.setProperty('--type', theme.type);
+    root.style.setProperty('--boolean', theme.boolean);
+    root.style.setProperty('--builtin', theme.builtin);
+
+    root.style.setProperty('--error', theme._error);
+    root.style.setProperty('--warning', theme._warning);
+    root.style.setProperty('--success', theme._success);
+
+    root.style.setProperty('--title-bar', theme._title_bar);
+    root.style.setProperty('--status-bar', theme._status_bar);
+  }
+
+  function updateConfig() {
+    const lines = [];
+
+    function pushLine(key, value) {
+      const padded = key.padEnd(35, ' ');
+      lines.push(padded + value);
+    }
+
+    pushLine('[my-awesome-theme]', '');
+    pushLine('', '');
+    pushLine('background',    theme.background.toUpperCase());
+    pushLine('foreground',    theme.foreground.toUpperCase());
+    pushLine('text_color',    theme.text_color.toUpperCase());
+    pushLine('cursor',        theme.cursor.toUpperCase());
+    pushLine('', '');
+
+    pushLine('default',       theme.default.toUpperCase());
+    pushLine('keyword',       theme.keyword.toUpperCase());
+    pushLine('class',         theme.class.toUpperCase());
+    pushLine('name',          theme.name.toUpperCase());
+    pushLine('lambda',        theme.lambda.toUpperCase());
+    pushLine('string',        theme.string.toUpperCase());
+    pushLine('number',        theme.number.toUpperCase());
+    pushLine('operator',      theme.operator.toUpperCase());
+    pushLine('comment',       theme.comment.toUpperCase());
+    pushLine('special',       theme.special.toUpperCase());
+    pushLine('type',          theme.type.toUpperCase());
+    pushLine('boolean',       theme.boolean.toUpperCase());
+    pushLine('builtin',       theme.builtin.toUpperCase());
+    pushLine('', '');
+
+    pushLine('_error',        theme._error.toUpperCase());
+    pushLine('_warning',      theme._warning.toUpperCase());
+    pushLine('_success',      theme._success.toUpperCase());
+    pushLine('', '');
+
+    pushLine('_title_bar',    theme._title_bar.toUpperCase());
+    pushLine('_status_bar',   theme._status_bar.toUpperCase());
+
+    document.getElementById('config-output').value = lines.join('\n');
+  }
+
+  function initControls() {
+    colorKeys.forEach((key) => {
+      const colorInput = document.getElementById(key + '-color');
+      const hexInput   = document.getElementById(key + '-hex');
+
+      if (!colorInput || !hexInput) return;
+
+      // initial
+      colorInput.value = normalizeHex(theme[key]);
+      hexInput.value   = normalizeHex(theme[key]);
+
+      colorInput.addEventListener('input', () => {
+        const hex = normalizeHex(colorInput.value);
+        theme[key] = hex;
+        hexInput.value = hex;
+        applyTheme();
+        updateConfig();
+      });
+
+      hexInput.addEventListener('change', () => {
+        const hex = normalizeHex(hexInput.value);
+        if (!hex) return;
+        theme[key] = hex;
+        colorInput.value = hex;
+        hexInput.value = hex;
+        applyTheme();
+        updateConfig();
+      });
+    });
+
+    const copyBtn = document.getElementById('copy-config');
+    const statusSpan = document.getElementById('copy-status');
+
+    copyBtn.addEventListener('click', () => {
+      const ta = document.getElementById('config-output');
+      ta.focus();
+      ta.select();
+      try {
+        const ok = document.execCommand('copy');
+        if (ok) {
+          statusSpan.textContent = 'Copied!';
+        } else {
+          statusSpan.textContent = 'Press ⌘/Ctrl+C to copy.';
+        }
+      } catch (e) {
+        statusSpan.textContent = 'Press ⌘/Ctrl+C to copy.';
+      }
+      setTimeout(() => { statusSpan.textContent = ''; }, 2000);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTheme();
+    initControls();
+    updateConfig();
+  });
+</script>
+</body>
+</html>
